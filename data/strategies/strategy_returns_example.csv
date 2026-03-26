@@ -1,0 +1,13 @@
+DATE,strategy_id,returns,strategy_name,strategy_category,asset_class
+2023-01-31,strat_a,0.012,Carry A,Carry,Multi-Asset
+2023-02-28,strat_a,-0.008,Carry A,Carry,Multi-Asset
+2023-03-31,strat_a,0.006,Carry A,Carry,Multi-Asset
+2023-04-30,strat_a,-0.015,Carry A,Carry,Multi-Asset
+2023-05-31,strat_a,0.011,Carry A,Carry,Multi-Asset
+2023-06-30,strat_a,0.004,Carry A,Carry,Multi-Asset
+2023-01-31,strat_b,0.004,Value B,Value,Equity
+2023-02-28,strat_b,0.007,Value B,Value,Equity
+2023-03-31,strat_b,-0.010,Value B,Value,Equity
+2023-04-30,strat_b,-0.012,Value B,Value,Equity
+2023-05-31,strat_b,0.003,Value B,Value,Equity
+2023-06-30,strat_b,0.009,Value B,Value,Equity
