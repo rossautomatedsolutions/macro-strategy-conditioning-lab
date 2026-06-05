@@ -17,7 +17,12 @@ The goal is interpretation and robustness diagnostics, not prediction.
 
 This repository consumes monthly macro outputs already prepared upstream.
 
-For direct real-data placement and smoke-check instructions, see [docs/real_data_integration.md](/C:/GitHub_Review_Folder/macro-strategy-conditioning-lab/docs/real_data_integration.md).
+For direct real-data placement and smoke-check instructions, see [docs/real_data_integration.md](/C:/GitHub/macro-strategy-conditioning-lab/docs/real_data_integration.md).
+
+Current provenance note:
+- the checked-in `data/macro/regimes.csv` and `data/macro/transitions.csv` files were exported/reconstructed from executed Part I notebook payloads
+- the original standalone OneDrive CSV exports were not available in the workspace during handoff
+- strict source-file hash comparison against those original standalone exports remains optional future provenance work
 
 ### Regime table schema
 - `DATE` (month-end datetime)

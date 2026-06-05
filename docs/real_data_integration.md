@@ -2,6 +2,14 @@
 
 This repository consumes realized Part I macro outputs as a locked data contract.
 
+## Current provenance note
+
+The current real macro files in `data/macro/` were exported/reconstructed from executed Part I notebook payloads.
+
+The original standalone OneDrive CSV exports were not available in this workspace during the handoff.
+
+Strict source-file hash comparison against those original standalone exports remains optional future provenance work.
+
 ## Expected macro file locations
 
 Place upstream Part I files in `data/macro/`. The default expected filenames are:
