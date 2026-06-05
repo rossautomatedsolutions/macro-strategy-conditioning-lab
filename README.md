@@ -15,7 +15,9 @@ The goal is interpretation and robustness diagnostics, not prediction.
 
 ## Relationship to Part I (Macro Interface)
 
-This repository consumes monthly macro outputs already prepared upstream:
+This repository consumes monthly macro outputs already prepared upstream.
+
+For direct real-data placement and smoke-check instructions, see [docs/real_data_integration.md](/C:/GitHub_Review_Folder/macro-strategy-conditioning-lab/docs/real_data_integration.md).
 
 ### Regime table schema
 - `DATE` (month-end datetime)
@@ -66,8 +68,7 @@ macro-strategy-conditioning/
 ├── src/
 │   ├── data/
 │   ├── conditioning/
-│   ├── visualization/
-│   └── utils/
+│   └── visualization/
 ├── notebooks/
 └── tests/
 ```
@@ -75,34 +76,38 @@ macro-strategy-conditioning/
 ## Core modules
 
 - `src/data/validators.py`: schema and consistency checks.
-- `src/conditioning/regime_join.py`: strict date joins (no forward-looking merges).
-- `src/conditioning/regime_stats.py`: returns, volatility, and drawdown by regime.
-- `src/conditioning/transition_analysis.py`: ±N month event windows around transitions.
-- `src/visualization/plots.py`: Plotly diagnostics (distributions, drawdowns, transition profiles).
+- `src/data/loaders.py`: CSV loaders for macro and strategy inputs.
+- `src/conditioning/regime_join.py`: strict date joins with no forward-looking merges.
+- `src/conditioning/regime_stats.py`: descriptive return, drawdown, tail, and volatility summaries by regime.
+- `src/conditioning/transition_analysis.py`: descriptive event windows and transition-aligned summaries around realized transitions.
+- `src/visualization/plots.py`: Plotly diagnostics for MVP notebooks.
 
 ## Notebook roadmap
 
-Each notebook answers one question and includes interpretation notes and non-predictive warnings.
+Implemented notebooks are intentionally narrow. Planned notebooks remain placeholders until their responsibilities are actually built.
 
 1. `00_orientation.ipynb` — scope, constraints, and repository tour
-2. `01_inputs_validation.ipynb` — verify schema and alignment quality
-3. `02_returns_by_regime.ipynb` — conditional return summaries
-4. `03_risk_drawdowns.ipynb` — regime-aware volatility and drawdowns
-5. `04_transition_behavior.ipynb` — event-window behavior around transitions
-6. `05_cross_strategy.ipynb` — cross-strategy comparative diagnostics
-7. `06_regime_robustness.ipynb` — robustness checks across sub-periods
-8. `07_interpretation.ipynb` — interpretation framework and caveats
-9. `08_dashboard.ipynb` — assembled visual diagnostic dashboard
+2. `01_inputs_validation.ipynb` — implemented; validation gatekeeper for schema, coverage, and transition consistency
+3. `02_returns_by_regime.ipynb` — implemented; first MVP analysis notebook for conditional return summaries after validation passes
+4. `03_risk_drawdowns.ipynb` — implemented; descriptive risk and drawdown diagnostics by macro regime
+5. `04_transition_behavior.ipynb` — implemented; descriptive behavior around historical macro regime transitions
+6. `05_cross_strategy.ipynb` — planned/future
+7. `06_regime_robustness.ipynb` — planned/future
+8. `07_interpretation.ipynb` — planned/future
+9. `08_dashboard.ipynb` — deferred; not part of the current MVP
 
 ## Example workflow
 
-1. Place monthly macro files in `data/macro/`.
+1. Place monthly macro files in `data/macro/`, preferably as `regimes.csv` and `transitions.csv`.
 2. Place strategy return files in `data/strategies/`.
 3. Load inputs via `src/data/loaders.py`.
-4. Run `run_all_validations(...)`.
-5. Join returns with regimes by exact `DATE`.
-6. Compute conditional stats and transition-window summaries.
-7. Visualize diagnostics in notebooks.
+4. Run `01_inputs_validation.ipynb` or `run_all_validations(...)` as the gatekeeper step.
+5. Optionally run `python scripts/smoke_real_macro_contract.py` for a direct contract audit of the macro files.
+6. Run `02_returns_by_regime.ipynb` for the first MVP analysis.
+7. Run `03_risk_drawdowns.ipynb` for descriptive risk and drawdown diagnostics.
+8. Run `04_transition_behavior.ipynb` for descriptive transition-aligned context analysis.
+9. Join returns with regimes by exact `DATE`.
+10. Compute conditional stats and visualize descriptive diagnostics.
 
 ## Quick start
 
