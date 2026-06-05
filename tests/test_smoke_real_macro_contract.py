@@ -1,24 +1,40 @@
 import subprocess
 import sys
 from pathlib import Path
+import shutil
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "smoke_real_macro_contract.py"
 
 
-def run_smoke(*args: str) -> subprocess.CompletedProcess[str]:
+def seed_example_inputs(tmp_path: Path) -> Path:
+    macro_dir = tmp_path / "data" / "macro"
+    strategy_dir = tmp_path / "data" / "strategies"
+    macro_dir.mkdir(parents=True, exist_ok=True)
+    strategy_dir.mkdir(parents=True, exist_ok=True)
+
+    shutil.copy2(REPO_ROOT / "data" / "macro" / "regimes_example.csv", macro_dir / "regimes_example.csv")
+    shutil.copy2(REPO_ROOT / "data" / "macro" / "transitions_example.csv", macro_dir / "transitions_example.csv")
+    shutil.copy2(
+        REPO_ROOT / "data" / "strategies" / "strategy_returns_example.csv",
+        strategy_dir / "strategy_returns_example.csv",
+    )
+    return tmp_path
+
+
+def run_smoke(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(SCRIPT_PATH), *args],
-        cwd=REPO_ROOT,
+        cwd=cwd or REPO_ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
 
 
-def test_default_fallback_still_works():
-    result = run_smoke()
+def test_default_fallback_still_works(tmp_path: Path):
+    result = run_smoke(cwd=seed_example_inputs(tmp_path))
 
     assert result.returncode == 0
     assert "macro input source: fallback example files" in result.stdout
@@ -26,26 +42,27 @@ def test_default_fallback_still_works():
     assert "transitions source: fallback" in result.stdout
 
 
-def test_explicit_missing_regime_file_fails():
-    result = run_smoke("--regimes", "data/macro/regimes.csv")
+def test_explicit_missing_regime_file_fails(tmp_path: Path):
+    result = run_smoke("--regimes", "data/macro/regimes.csv", cwd=seed_example_inputs(tmp_path))
 
     assert result.returncode != 0
     assert "explicit regimes file does not exist: data\\macro\\regimes.csv" in result.stderr
 
 
-def test_explicit_missing_transition_file_fails():
-    result = run_smoke("--transitions", "data/macro/transitions.csv")
+def test_explicit_missing_transition_file_fails(tmp_path: Path):
+    result = run_smoke("--transitions", "data/macro/transitions.csv", cwd=seed_example_inputs(tmp_path))
 
     assert result.returncode != 0
     assert "explicit transitions file does not exist: data\\macro\\transitions.csv" in result.stderr
 
 
-def test_explicit_existing_files_do_not_fall_back():
+def test_explicit_existing_files_do_not_fall_back(tmp_path: Path):
     result = run_smoke(
         "--regimes",
         "data/macro/regimes_example.csv",
         "--transitions",
         "data/macro/transitions_example.csv",
+        cwd=seed_example_inputs(tmp_path),
     )
 
     assert result.returncode == 0
