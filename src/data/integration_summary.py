@@ -52,3 +52,36 @@ def build_macro_regime_category_counts(regimes: pd.DataFrame) -> pd.DataFrame:
         .sort_values(["count", "Macro_Regime"], ascending=[False, True])
         .reset_index(drop=True)
     )
+
+
+def build_sparse_regime_coverage_table(
+    joined: pd.DataFrame,
+    regimes: pd.DataFrame,
+    sparse_threshold: int = 3,
+) -> pd.DataFrame:
+    """Return per-strategy regime coverage flags for sparse or missing samples."""
+    macro_counts = build_macro_regime_category_counts(regimes).rename(columns={"count": "macro_months_available"})
+    strategies = pd.DataFrame({"strategy_id": sorted(joined["strategy_id"].unique())})
+    categories = macro_counts[["Macro_Regime"]].drop_duplicates().sort_values("Macro_Regime").reset_index(drop=True)
+    coverage_grid = strategies.assign(_key=1).merge(categories.assign(_key=1), on="_key").drop(columns="_key")
+
+    strategy_obs = (
+        joined.groupby(["strategy_id", "Macro_Regime"])
+        .size()
+        .reset_index(name="strategy_obs")
+    )
+
+    coverage = coverage_grid.merge(strategy_obs, on=["strategy_id", "Macro_Regime"], how="left")
+    coverage = coverage.merge(macro_counts, on="Macro_Regime", how="left", validate="many_to_one")
+    coverage["strategy_obs"] = coverage["strategy_obs"].fillna(0).astype(int)
+
+    coverage["coverage_status"] = "adequate"
+    coverage.loc[coverage["strategy_obs"] == 0, "coverage_status"] = "unobserved"
+    coverage.loc[
+        (coverage["strategy_obs"] > 0) & (coverage["strategy_obs"] < sparse_threshold),
+        "coverage_status",
+    ] = "sparse"
+    coverage["sample_caveat"] = (
+        "Diagnostic warning only; not a trading conclusion."
+    )
+    return coverage.sort_values(["strategy_id", "Macro_Regime"]).reset_index(drop=True)

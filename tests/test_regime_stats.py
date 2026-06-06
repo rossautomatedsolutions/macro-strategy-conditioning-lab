@@ -2,8 +2,10 @@ import pandas as pd
 
 from src.conditioning.regime_stats import (
     compute_cumulative_returns,
+    cumulative_return_by_regime,
     compute_drawdown_series,
     drawdown_by_regime,
+    regime_diagnostics_by_regime,
     risk_summary_by_regime,
     volatility_by_regime,
 )
@@ -63,6 +65,16 @@ def test_drawdown_by_regime_reports_max_and_average_drawdown():
     assert round(strat_a_expansion["average_drawdown"], 8) == -0.10
 
 
+def test_cumulative_return_by_regime_reports_terminal_group_return():
+    joined = build_sample_joined()
+    summary = cumulative_return_by_regime(joined)
+
+    strat_a_expansion = summary[
+        (summary["strategy_id"] == "strat_a") & (summary["Macro_Regime"] == "Expansion / Disinflationary / Easing")
+    ].iloc[0]
+    assert round(strat_a_expansion["cumulative_return"], 8) == -0.12
+
+
 def test_risk_summary_by_regime_handles_one_strategy():
     joined = build_sample_joined()
     one_strategy = joined[joined["strategy_id"] == "strat_a"].copy()
@@ -80,6 +92,29 @@ def test_risk_summary_by_regime_handles_multiple_strategies():
     summary = risk_summary_by_regime(joined)
 
     assert set(summary["strategy_id"]) == {"strat_a", "strat_b"}
+    assert len(summary) == 4
+
+
+def test_regime_diagnostics_by_regime_combines_descriptive_fields():
+    joined = build_sample_joined()
+    summary = regime_diagnostics_by_regime(joined)
+
+    required = {
+        "mean_return",
+        "median_return",
+        "hit_rate",
+        "cumulative_return",
+        "volatility",
+        "downside_volatility",
+        "min_return",
+        "max_return",
+        "worst_monthly_return",
+        "tail_return_5pct",
+        "max_drawdown",
+        "average_drawdown",
+        "obs",
+    }
+    assert required.issubset(summary.columns)
     assert len(summary) == 4
 
 

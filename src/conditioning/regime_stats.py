@@ -26,6 +26,25 @@ def returns_by_regime(df: pd.DataFrame, regime_col: str = "Macro_Regime") -> pd.
     return out.reset_index()
 
 
+def cumulative_return_by_regime(df: pd.DataFrame, regime_col: str = "Macro_Regime") -> pd.DataFrame:
+    """Compute terminal cumulative return per strategy and regime."""
+    out_rows: list[dict] = []
+
+    for (strategy_id, regime), grp in df.groupby(["strategy_id", regime_col]):
+        ordered = grp.sort_values("DATE")
+        cumulative = compute_cumulative_returns(ordered["returns"])
+        out_rows.append(
+            {
+                "strategy_id": strategy_id,
+                regime_col: regime,
+                "cumulative_return": float(cumulative.iloc[-1] - 1),
+                "obs": len(ordered),
+            }
+        )
+
+    return pd.DataFrame(out_rows)
+
+
 def volatility_by_regime(df: pd.DataFrame, regime_col: str = "Macro_Regime") -> pd.DataFrame:
     """Compute standard deviation and downside deviation of returns per regime."""
 
@@ -71,3 +90,22 @@ def risk_summary_by_regime(df: pd.DataFrame, regime_col: str = "Macro_Regime") -
 
     drawdown = drawdown_by_regime(df, regime_col=regime_col)
     return out.merge(drawdown, on=["strategy_id", regime_col, "obs"], how="left", validate="one_to_one")
+
+
+def regime_diagnostics_by_regime(df: pd.DataFrame, regime_col: str = "Macro_Regime") -> pd.DataFrame:
+    """Assemble a table-oriented descriptive diagnostics summary by strategy and regime."""
+    summary = returns_by_regime(df, regime_col=regime_col)
+    cumulative = cumulative_return_by_regime(df, regime_col=regime_col)
+    volatility = volatility_by_regime(df, regime_col=regime_col)
+    risk = risk_summary_by_regime(df, regime_col=regime_col).drop(columns=["volatility"])
+    extrema = (
+        df.groupby(["strategy_id", regime_col])["returns"]
+        .agg(min_return="min", max_return="max", obs="count")
+        .reset_index()
+    )
+
+    out = summary.merge(cumulative, on=["strategy_id", regime_col, "obs"], how="left", validate="one_to_one")
+    out = out.merge(volatility, on=["strategy_id", regime_col, "obs"], how="left", validate="one_to_one")
+    out = out.merge(extrema, on=["strategy_id", regime_col, "obs"], how="left", validate="one_to_one")
+    out = out.merge(risk, on=["strategy_id", regime_col, "obs"], how="left", validate="one_to_one")
+    return out.sort_values(["strategy_id", regime_col]).reset_index(drop=True)
