@@ -60,22 +60,26 @@ Rules respected in this repo:
 - no positions, no execution logic
 - no optimization routines
 
+Checked-in strategy fixtures:
+- `data/strategies/strategy_returns_example.csv`: narrow synthetic/sample-only fixture used to preserve sparse-coverage and zero-aligned-transition examples
+- `data/strategies/strategy_returns_wide_sample.csv`: wider synthetic/sample-only fixture used to exercise broader descriptive regime coverage and aligned transition examples
+
 ## Repository layout
 
 ```text
 macro-strategy-conditioning/
-├── README.md
-├── requirements.txt
-├── pyproject.toml
-├── data/
-│   ├── macro/
-│   └── strategies/
-├── src/
-│   ├── data/
-│   ├── conditioning/
-│   └── visualization/
-├── notebooks/
-└── tests/
+|- README.md
+|- requirements.txt
+|- pyproject.toml
+|- data/
+|  |- macro/
+|  `- strategies/
+|- src/
+|  |- data/
+|  |- conditioning/
+|  `- visualization/
+|- notebooks/
+`- tests/
 ```
 
 ## Core modules
@@ -85,21 +89,24 @@ macro-strategy-conditioning/
 - `src/conditioning/regime_join.py`: strict date joins with no forward-looking merges.
 - `src/conditioning/regime_stats.py`: descriptive return, drawdown, tail, and volatility summaries by regime.
 - `src/conditioning/transition_analysis.py`: descriptive event windows and transition-aligned summaries around realized transitions.
+- `src/conditioning/final_summary_report.py`: shared table builders for the final Notebook 08 research packet.
 - `src/visualization/plots.py`: Plotly diagnostics for MVP notebooks.
 
 ## Notebook roadmap
 
-Implemented notebooks are intentionally narrow. Planned notebooks remain placeholders until their responsibilities are actually built.
+Implemented notebooks are intentionally narrow and descriptive. The current completed sequence now runs through Notebook `08`.
 
-1. `00_orientation.ipynb` — scope, constraints, and repository tour
-2. `01_inputs_validation.ipynb` — implemented; validation gatekeeper for schema, coverage, and transition consistency
-3. `02_returns_by_regime.ipynb` — implemented; first MVP analysis notebook for conditional return summaries after validation passes
-4. `03_risk_drawdowns.ipynb` — implemented; descriptive risk and drawdown diagnostics by macro regime
-5. `04_transition_behavior.ipynb` — implemented; descriptive behavior around historical macro regime transitions
-6. `05_cross_strategy.ipynb` — planned/future
-7. `06_regime_robustness.ipynb` — planned/future
-8. `07_interpretation.ipynb` — planned/future
-9. `08_dashboard.ipynb` — deferred; not part of the current MVP
+1. `00_orientation.ipynb` - scope, constraints, and repository tour
+2. `01_inputs_validation.ipynb` - implemented; validation gatekeeper for schema, coverage, and transition consistency
+3. `02_returns_by_regime.ipynb` - implemented; first MVP analysis notebook for conditional return summaries after validation passes
+4. `03_risk_drawdowns.ipynb` - implemented; descriptive risk and drawdown diagnostics by macro regime
+5. `04_transition_behavior.ipynb` - implemented; descriptive behavior around historical macro regime transitions
+6. `05_cross_strategy.ipynb` - implemented; real macro plus sample-strategy integration foundation and coverage boundary check
+7. `06_regime_robustness.ipynb` - implemented; real macro integration overview plus regime-conditioned diagnostics and sparse-coverage warnings
+8. `07_transition_diagnostics.ipynb` - implemented; transition coverage diagnostics and event-window alignment checks
+9. `08_final_summary_packet.ipynb` - implemented; final descriptive research summary packet consolidating the 05-07 outputs
+
+Notebook `08` is not an interactive dashboard. Any future dashboard work remains explicitly out of scope for the current research contract.
 
 ## Example workflow
 
@@ -108,11 +115,26 @@ Implemented notebooks are intentionally narrow. Planned notebooks remain placeho
 3. Load inputs via `src/data/loaders.py`.
 4. Run `01_inputs_validation.ipynb` or `run_all_validations(...)` as the gatekeeper step.
 5. Optionally run `python scripts/smoke_real_macro_contract.py` for a direct contract audit of the macro files.
-6. Run `02_returns_by_regime.ipynb` for the first MVP analysis.
-7. Run `03_risk_drawdowns.ipynb` for descriptive risk and drawdown diagnostics.
-8. Run `04_transition_behavior.ipynb` for descriptive transition-aligned context analysis.
-9. Join returns with regimes by exact `DATE`.
-10. Compute conditional stats and visualize descriptive diagnostics.
+6. Run `05_cross_strategy.ipynb` to establish the real-macro/sample-strategy integration baseline and confirm the overlap boundary.
+7. Run `06_regime_robustness.ipynb` for descriptive real-macro diagnostics and sparse-sample regime coverage warnings.
+8. Run `07_transition_diagnostics.ipynb` for transition alignment diagnostics and clean empty-state handling when no transition dates overlap strategy coverage.
+9. Run `08_final_summary_packet.ipynb` for the final table-oriented research summary packet.
+10. Interpret outputs as descriptive context only; they are not forecasts, signals, rankings, optimizations, allocations, or trading recommendations.
+
+The implemented notebooks intentionally keep `data/strategies/strategy_returns_example.csv` as their default minimal contract fixture so the sparse-coverage and zero-aligned-transition behavior remains easy to reproduce.
+
+If you want broader synthetic coverage for diagnostics or tests, swap `data/strategies/strategy_returns_wide_sample.csv` into the strategy loader path instead of the narrow example fixture.
+
+## 05-08 flow
+
+The implemented 05-08 sequence is designed as a narrow descriptive research path:
+
+- Notebook `05` establishes the real macro plus sample-strategy integration foundation and makes the overlap boundary explicit.
+- Notebook `06` summarizes realized macro regime coverage within the current strategy window and flags sparse or missing regime observations as sample caveats.
+- Notebook `07` checks transition alignment and treats zero aligned transitions as an acceptable sample-window outcome rather than a contract failure.
+- Notebook `08` assembles a final research summary packet from shared table builders in `src/conditioning/final_summary_report.py`.
+
+The narrow checked-in example strategy file is intentionally sparse, so the final packet may remain sparse and may show zero aligned transitions when that fixture is used. The wider synthetic sample fixture exists only to exercise broader descriptive regime and transition coverage; neither fixture is production data or a basis for portfolio or trading decisions.
 
 ## Quick start
 
@@ -125,4 +147,4 @@ pytest
 
 ## Non-predictive disclaimer
 
-All outputs are descriptive and historical. Any observed relationship between returns and macro labels should be interpreted as conditional context, **not** a forecast and **not** a trading recommendation.
+All outputs are descriptive and historical. Any observed relationship between returns and macro labels should be interpreted as conditional context, **not** a forecast, **not** a trading recommendation, and **not** investment advice.
