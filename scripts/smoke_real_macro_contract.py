@@ -11,7 +11,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.data.loaders import load_regimes, load_strategy_returns, load_transitions
-from src.data.validators import audit_transition_coverage, run_all_validations
+from src.data.validators import audit_macro_contract, audit_transition_coverage, run_all_validations
 
 
 def _resolve_input(
@@ -65,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     strategy_returns = load_strategy_returns(args.strategy)
 
     run_all_validations(regimes, transitions, strategy_returns)
+    macro_audit = audit_macro_contract(regimes, transitions)
     coverage = audit_transition_coverage(transitions, strategy_returns)
 
     macro_min = regimes["DATE"].min().date()
@@ -87,6 +88,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"transition row count: {len(transitions)}")
     print(f"macro date range: {macro_min} to {macro_max}")
     print(f"Macro_Regime categories: {regime_categories}")
+    print(f"expected month-end count in macro range: {macro_audit.expected_regime_month_count}")
+    if macro_audit.missing_regime_months.empty:
+        print("internal missing regime months: none")
+    else:
+        missing = ", ".join(macro_audit.missing_regime_months.strftime("%Y-%m-%d"))
+        print(f"internal missing regime months: {missing}")
     print(f"transition rows aligned to strategy coverage: {len(coverage.aligned)}")
     print(f"transition rows outside strategy coverage: {len(coverage.outside_coverage)}")
 

@@ -20,7 +20,7 @@ def test_notebook_06_real_regime_diagnostics_path_uses_real_macro_files():
     coverage_table = build_sparse_regime_coverage_table(joined, regimes, sparse_threshold=3)
 
     assert len(overview) == 1
-    assert overview.loc[0, "macro_row_count"] == 419
+    assert overview.loc[0, "macro_row_count"] == 420
     assert overview.loc[0, "transitions_inside_strategy_coverage"] == 0
     assert overview.loc[0, "transitions_outside_strategy_coverage"] == 62
     assert coverage.aligned.empty

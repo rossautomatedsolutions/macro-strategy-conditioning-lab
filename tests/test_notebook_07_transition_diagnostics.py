@@ -19,6 +19,8 @@ def test_notebook_07_transition_diagnostics_path_uses_real_macro_files():
         "aligned_transitions",
         "outside_coverage_transitions",
         "transition_window_status",
+        "transition_window_completeness_summary",
+        "transition_window_diagnostics",
         "transition_windows",
         "transition_window_summary",
         "transition_cumulative_profile",
@@ -26,7 +28,7 @@ def test_notebook_07_transition_diagnostics_path_uses_real_macro_files():
 
     overview = tables["integration_overview"]
     assert len(overview) == 1
-    assert overview.loc[0, "macro_row_count"] == 419
+    assert overview.loc[0, "macro_row_count"] == 420
     assert overview.loc[0, "transition_row_count"] == 62
     assert overview.loc[0, "strategy_row_count"] == 12
     assert overview.loc[0, "transitions_inside_strategy_coverage"] == 0
@@ -57,12 +59,36 @@ def test_notebook_07_transition_diagnostics_path_uses_real_macro_files():
         {
             "status": "empty",
             "aligned_transition_count": 0,
+            "aligned_transition_rows_with_any_complete_window": 0,
+            "aligned_transition_rows_with_only_incomplete_windows": 0,
+            "aligned_transition_rows_with_missing_windows": 0,
+            "complete_strategy_transition_window_count": 0,
+            "partial_strategy_transition_window_count": 0,
+            "missing_strategy_transition_window_count": 0,
             "message": (
-                "No transition dates overlap the current sample strategy window; "
-                "this is acceptable for the checked-in sample file and not a contract failure."
+                "No transition dates overlap the current strategy window; "
+                "this is acceptable when the supplied strategy history does not cover transition months "
+                "and is not a contract failure."
             ),
         }
     ]
+
+    completeness = tables["transition_window_completeness_summary"]
+    assert completeness.to_dict("records") == [
+        {
+            "strategy_transition_windows": 0,
+            "complete_strategy_transition_windows": 0,
+            "partial_strategy_transition_windows": 0,
+            "missing_strategy_transition_windows": 0,
+            "aligned_transition_rows_with_any_complete_window": 0,
+            "aligned_transition_rows_with_only_incomplete_windows": 0,
+            "aligned_transition_rows_with_missing_windows": 0,
+            "aligned_transition_rows_all_windows_complete": 0,
+        }
+    ]
+
+    diagnostics = tables["transition_window_diagnostics"]
+    assert diagnostics.empty
 
     assert tables["transition_windows"].empty
     assert tables["transition_window_summary"].empty

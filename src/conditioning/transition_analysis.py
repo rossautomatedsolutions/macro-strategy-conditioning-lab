@@ -6,6 +6,56 @@ import pandas as pd
 
 from src.conditioning.regime_stats import compute_cumulative_returns
 
+WINDOW_GROUP_COLUMNS = ["strategy_id", "transition_date", "from", "to"]
+WINDOW_DIAGNOSTIC_COLUMNS = [
+    "window_status",
+    "is_complete_window",
+    "has_event_month",
+    "observed_relative_month_count",
+    "expected_relative_month_count",
+    "observed_relative_months",
+    "missing_relative_months",
+]
+
+
+def _calendar_month_offsets(dates: pd.Series, transition_date: pd.Timestamp) -> pd.Series:
+    """Return whole-calendar-month offsets from *transition_date*."""
+    return ((dates.dt.year - transition_date.year) * 12 + (dates.dt.month - transition_date.month)).astype(int)
+
+
+def build_transition_window_diagnostics(event_df: pd.DataFrame, window: int) -> pd.DataFrame:
+    """Summarize completeness for each strategy/transition event window."""
+    columns = [*WINDOW_GROUP_COLUMNS, *WINDOW_DIAGNOSTIC_COLUMNS]
+    if event_df.empty:
+        return pd.DataFrame(columns=columns)
+
+    expected_relative_months = tuple(range(-window, window + 1))
+    expected_set = set(expected_relative_months)
+    rows: list[dict] = []
+
+    for group_keys, grp in event_df.groupby(WINDOW_GROUP_COLUMNS, sort=True):
+        observed_relative_months = tuple(sorted(grp["relative_month"].astype(int).unique()))
+        observed_set = set(observed_relative_months)
+        missing_relative_months = tuple(month for month in expected_relative_months if month not in observed_set)
+        is_complete_window = observed_set == expected_set
+        rows.append(
+            {
+                "strategy_id": group_keys[0],
+                "transition_date": group_keys[1],
+                "from": group_keys[2],
+                "to": group_keys[3],
+                "window_status": "complete" if is_complete_window else "partial",
+                "is_complete_window": is_complete_window,
+                "has_event_month": 0 in observed_set,
+                "observed_relative_month_count": len(observed_relative_months),
+                "expected_relative_month_count": len(expected_relative_months),
+                "observed_relative_months": observed_relative_months,
+                "missing_relative_months": missing_relative_months,
+            }
+        )
+
+    return pd.DataFrame(rows).sort_values(["transition_date", "strategy_id"]).reset_index(drop=True)
+
 
 def build_transition_windows(
     joined_df: pd.DataFrame,
@@ -14,35 +64,43 @@ def build_transition_windows(
 ) -> pd.DataFrame:
     """Create descriptive event windows around each historical transition date."""
     ordered = joined_df.sort_values(["strategy_id", "DATE"]).copy()
-    available_dates = sorted(ordered["DATE"].unique())
-    date_to_idx = {date: idx for idx, date in enumerate(available_dates)}
+    available_dates = set(ordered["DATE"])
 
     rows: list[pd.DataFrame] = []
     for _, transition in transitions.iterrows():
         transition_date = transition["transition_date"]
-        if transition_date not in date_to_idx:
+        if transition_date not in available_dates:
             continue
 
-        center_idx = date_to_idx[transition_date]
-        lo = max(0, center_idx - window)
-        hi = min(len(available_dates) - 1, center_idx + window)
-        window_dates = available_dates[lo : hi + 1]
+        relative_month = _calendar_month_offsets(ordered["DATE"], transition_date)
+        event_window = ordered.loc[relative_month.between(-window, window)].copy()
+        if event_window.empty:
+            continue
 
-        event_window = ordered[ordered["DATE"].isin(window_dates)].copy()
-        event_window["relative_month"] = event_window["DATE"].map(lambda d: date_to_idx[d] - center_idx)
+        event_window["relative_month"] = _calendar_month_offsets(event_window["DATE"], transition_date)
         event_window["transition_date"] = transition_date
         event_window["from"] = transition["from"]
         event_window["to"] = transition["to"]
         rows.append(event_window)
 
-    columns = [*ordered.columns, "relative_month", "transition_date", "from", "to"]
+    columns = [*ordered.columns, "relative_month", "transition_date", "from", "to", *WINDOW_DIAGNOSTIC_COLUMNS]
     if not rows:
         return pd.DataFrame(columns=columns)
-    return pd.concat(rows, ignore_index=True)
+
+    event_df = pd.concat(rows, ignore_index=True)
+    diagnostics = build_transition_window_diagnostics(event_df, window=window)
+    return (
+        event_df.merge(diagnostics, on=WINDOW_GROUP_COLUMNS, how="left", validate="many_to_one")
+        .sort_values(["transition_date", "strategy_id", "DATE"])
+        .reset_index(drop=True)
+    )
 
 
-def summarize_transition_windows(event_df: pd.DataFrame) -> pd.DataFrame:
+def summarize_transition_windows(event_df: pd.DataFrame, *, complete_only: bool = False) -> pd.DataFrame:
     """Average returns and volatility by relative month around transitions."""
+    if complete_only and "is_complete_window" in event_df.columns:
+        event_df = event_df.loc[event_df["is_complete_window"]].copy()
+
     if event_df.empty:
         return pd.DataFrame(
             columns=["strategy_id", "relative_month", "mean_return", "median_return", "volatility", "obs"]
@@ -55,8 +113,11 @@ def summarize_transition_windows(event_df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def cumulative_transition_profile(event_df: pd.DataFrame) -> pd.DataFrame:
+def cumulative_transition_profile(event_df: pd.DataFrame, *, complete_only: bool = False) -> pd.DataFrame:
     """Compute average cumulative behavior around transitions by strategy."""
+    if complete_only and "is_complete_window" in event_df.columns:
+        event_df = event_df.loc[event_df["is_complete_window"]].copy()
+
     if event_df.empty:
         return pd.DataFrame(columns=["strategy_id", "relative_month", "mean_cumulative_return", "obs"])
 

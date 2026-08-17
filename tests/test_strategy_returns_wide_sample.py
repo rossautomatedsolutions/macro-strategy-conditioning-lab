@@ -70,11 +70,38 @@ def test_wide_strategy_sample_produces_aligned_transition_examples():
     status = tables["transition_window_status"]
     assert status.to_dict("records") == [
         {
-            "status": "ok",
+            "status": "mixed",
             "aligned_transition_count": 13,
-            "message": "Aligned transition dates are available for descriptive event-window diagnostics.",
+            "aligned_transition_rows_with_any_complete_window": 9,
+            "aligned_transition_rows_with_only_incomplete_windows": 4,
+            "aligned_transition_rows_with_missing_windows": 0,
+            "complete_strategy_transition_window_count": 18,
+            "partial_strategy_transition_window_count": 8,
+            "missing_strategy_transition_window_count": 0,
+            "message": (
+                "Aligned transition dates exist. Aggregate transition summaries use only complete per-strategy "
+                "event windows; partial windows are reported separately."
+            ),
         }
     ]
+
+    completeness = tables["transition_window_completeness_summary"]
+    assert completeness.to_dict("records") == [
+        {
+            "strategy_transition_windows": 26,
+            "complete_strategy_transition_windows": 18,
+            "partial_strategy_transition_windows": 8,
+            "missing_strategy_transition_windows": 0,
+            "aligned_transition_rows_with_any_complete_window": 9,
+            "aligned_transition_rows_with_only_incomplete_windows": 4,
+            "aligned_transition_rows_with_missing_windows": 0,
+            "aligned_transition_rows_all_windows_complete": 9,
+        }
+    ]
+
+    diagnostics = tables["transition_window_diagnostics"]
+    assert set(diagnostics["window_status"]) == {"complete", "partial"}
+    assert len(diagnostics) == 26
 
     assert not tables["transition_windows"].empty
     assert not tables["transition_window_summary"].empty
@@ -104,14 +131,26 @@ def test_final_summary_packet_builds_with_wide_strategy_sample():
         }
     ]
 
+    transition_window_status = tables["transition_window_status"]
+    assert transition_window_status.loc[0, "status"] == "mixed"
+
+    transition_window_completeness_summary = tables["transition_window_completeness_summary"]
+    assert transition_window_completeness_summary.loc[0, "complete_strategy_transition_windows"] == 18
+    assert transition_window_completeness_summary.loc[0, "partial_strategy_transition_windows"] == 8
+    assert transition_window_completeness_summary.loc[0, "missing_strategy_transition_windows"] == 0
+
     caveats = tables["caveats"]
     assert set(caveats["caveat"]) == {
-        "sample_strategy_window",
+        "strategy_input_window",
         "realized_regime_coverage",
         "transition_alignment_context",
         "research_only",
     }
     assert (
         caveats.loc[caveats["caveat"] == "transition_alignment_context", "detail"].iloc[0]
-        == "The current synthetic/sample input includes 13 aligned transition rows for descriptive transition diagnostics."
+        == (
+            "The current strategy input includes 13 aligned transition rows. "
+            "Aggregate transition summaries use only 18 complete per-strategy windows "
+            "and report 8 partial windows separately."
+        )
     )

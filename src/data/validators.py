@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 
 GROWTH_ALLOWED = {"Expansion", "Contraction"}
@@ -17,6 +18,18 @@ class TransitionCoverageReport:
 
     aligned: pd.DataFrame
     outside_coverage: pd.DataFrame
+
+
+@dataclass(frozen=True)
+class MacroContractAudit:
+    """Audit details for macro calendar continuity and transition consistency."""
+
+    expected_regime_month_count: int
+    missing_regime_months: pd.DatetimeIndex
+    duplicate_regime_months: pd.DatetimeIndex
+    regime_dates_sorted: bool
+    transition_dates_missing_from_regimes: pd.DatetimeIndex
+    transition_label_mismatches: pd.DataFrame
 
 
 def _ensure_columns(df: pd.DataFrame, required: list[str], name: str) -> None:
@@ -83,6 +96,9 @@ def validate_transitions(transitions: pd.DataFrame, regimes: pd.DataFrame) -> No
     if transitions[required].isna().any().any():
         raise ValueError("transitions contains missing values")
 
+    if transitions["transition_date"].duplicated().any():
+        raise ValueError("transitions must have at most one row per transition_date")
+
     _ensure_month_end(transitions["transition_date"], "transitions.transition_date")
 
     valid_labels = set(regimes["Macro_Regime"])
@@ -95,6 +111,17 @@ def validate_transitions(transitions: pd.DataFrame, regimes: pd.DataFrame) -> No
 
     if not set(transitions["transition_date"]).issubset(set(regimes["DATE"])):
         raise ValueError("all transition_date values must exist in regimes.DATE")
+
+    audit = audit_macro_contract(regimes, transitions)
+    if not audit.transition_label_mismatches.empty:
+        first = audit.transition_label_mismatches.iloc[0]
+        date = first["transition_date"].date()
+        raise ValueError(
+            "transitions must match the realized regime sequence. "
+            f"example mismatch at {date}: expected "
+            f"from='{first['expected_from']}' to='{first['expected_to']}', got "
+            f"from='{first['from']}' to='{first['to']}'"
+        )
 
 
 def audit_transition_coverage(
@@ -120,11 +147,63 @@ def validate_strategy_returns(strategy_returns: pd.DataFrame, regimes: pd.DataFr
     if strategy_returns.duplicated(subset=["DATE", "strategy_id"]).any():
         raise ValueError("strategy_returns must have at most one row per DATE and strategy_id")
 
+    _ensure_month_end(strategy_returns["DATE"], "strategy_returns.DATE")
+
+    numeric_returns = pd.to_numeric(strategy_returns["returns"], errors="coerce")
+    if numeric_returns.isna().any():
+        preview = ", ".join(map(str, strategy_returns.loc[numeric_returns.isna(), "returns"].head(5).tolist()))
+        raise ValueError(f"strategy_returns.returns must contain numeric values. examples: {preview}")
+    if not np.isfinite(numeric_returns).all():
+        raise ValueError("strategy_returns.returns must contain only finite numeric values")
+
     macro_dates = set(regimes["DATE"])
     bad_dates = sorted(set(strategy_returns["DATE"]) - macro_dates)
     if bad_dates:
         preview = ", ".join(str(d.date()) for d in bad_dates[:5])
         raise ValueError(f"strategy_returns contains dates not in macro regimes. examples: {preview}")
+
+
+def audit_macro_contract(regimes: pd.DataFrame, transitions: pd.DataFrame) -> MacroContractAudit:
+    """Summarize internal month-end cadence and transition consistency."""
+    regime_dates = pd.DatetimeIndex(regimes["DATE"])
+    expected_regime_dates = pd.date_range(regime_dates.min(), regime_dates.max(), freq="ME")
+    regime_labels = regimes.sort_values("DATE").set_index("DATE")["Macro_Regime"]
+    previous_labels = regime_labels.shift(1)
+
+    mismatches: list[dict[str, object]] = []
+    for _, row in transitions.sort_values("transition_date").iterrows():
+        transition_date = row["transition_date"]
+        if transition_date not in regime_labels.index:
+            continue
+        expected_from = previous_labels.loc[transition_date]
+        expected_to = regime_labels.loc[transition_date]
+        if row["from"] != expected_from or row["to"] != expected_to:
+            mismatches.append(
+                {
+                    "transition_date": transition_date,
+                    "from": row["from"],
+                    "to": row["to"],
+                    "expected_from": expected_from,
+                    "expected_to": expected_to,
+                }
+            )
+
+    duplicate_months = pd.DatetimeIndex(regimes.loc[regimes["DATE"].duplicated(), "DATE"].sort_values().unique())
+    transition_dates_missing = pd.DatetimeIndex(
+        sorted(set(transitions["transition_date"]) - set(regime_dates))
+    )
+
+    return MacroContractAudit(
+        expected_regime_month_count=len(expected_regime_dates),
+        missing_regime_months=expected_regime_dates.difference(regime_dates),
+        duplicate_regime_months=duplicate_months,
+        regime_dates_sorted=bool(regimes["DATE"].is_monotonic_increasing),
+        transition_dates_missing_from_regimes=transition_dates_missing,
+        transition_label_mismatches=pd.DataFrame(
+            mismatches,
+            columns=["transition_date", "from", "to", "expected_from", "expected_to"],
+        ),
+    )
 
 
 def run_all_validations(

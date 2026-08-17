@@ -25,7 +25,7 @@ def test_notebook_06_real_diagnostics_path_uses_real_macro_files():
 
     overview = tables["integration_overview"]
     assert len(overview) == 1
-    assert overview.loc[0, "macro_row_count"] == 419
+    assert overview.loc[0, "macro_row_count"] == 420
     assert overview.loc[0, "transition_row_count"] == 62
     assert overview.loc[0, "strategy_row_count"] == 12
 
