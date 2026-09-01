@@ -176,6 +176,21 @@ pip install -r requirements.txt
 pytest
 ```
 
+## Governed monthly adapter
+
+The FRED II scheduler boundary is unattended but dependency-explicit: it
+requires the completed FRED I run directory and validates that declared bundle
+against the locked macro and strategy contracts.
+
+```powershell
+python scripts/run_fred_ii_monthly.py --profile Sandbox --run-dir <run-dir> --fred-i-run-dir <fred-i-run-dir>
+```
+
+It writes `fred_ii_conditioning_summary.json`, `fred_ii_provenance.json`, and
+`candidate_result.json`. Missing or historical FRED I source quality is reported
+as `DATA_LIMITED`; it is never silently promoted to current data or a trading
+signal.
+
 Verified on August 17, 2026:
 - `pytest` passed with 76 tests, including Alpha Generation adapter coverage and canonical macro-cadence regression checks
 - `python scripts/smoke_real_macro_contract.py` passed on the checked-in real macro files plus the narrow strategy fixture
