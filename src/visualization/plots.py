@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import plotly.express as px
 import plotly.graph_objects as go
+import pandas as pd
 
 from src.conditioning.regime_stats import compute_drawdown_series
 
